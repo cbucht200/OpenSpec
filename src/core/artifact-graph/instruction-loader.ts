@@ -96,6 +96,8 @@ export interface ArtifactInstructions {
   template: string;
   /** Dependencies with completion status and paths */
   dependencies: DependencyInfo[];
+  /** Optional context files: present when their files exist, absent otherwise */
+  contextFiles: ContextFileInfo[];
   /** Artifacts that become available after completing this one */
   unlocks: string[];
 }
@@ -115,6 +117,18 @@ export interface DependencyInfo {
 }
 
 /**
+ * Optional context file information. Present only when the file exists at the change root.
+ */
+export interface ContextFileInfo {
+  /** Artifact ID */
+  id: string;
+  /** Absolute path to the context file */
+  path: string;
+  /** Description of the context artifact */
+  description: string;
+}
+
+/**
  * Status of a single artifact in the workflow.
  */
 export interface ArtifactStatus {
@@ -126,6 +140,8 @@ export interface ArtifactStatus {
   status: 'done' | 'ready' | 'blocked';
   /** Missing dependencies (only for blocked) */
   missingDeps?: string[];
+  /** True when this artifact is optional (not required by any other artifact and not in apply.requires) */
+  optional?: boolean;
 }
 
 /**
@@ -337,6 +353,7 @@ export function generateInstructions(
     ...(options.references !== undefined ? { references: options.references } : {}),
     template: templateContent,
     dependencies,
+    contextFiles: getContextFileInfo(artifact, context.graph, context.changeDir),
     unlocks,
   };
 }
@@ -376,6 +393,35 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
 }
 
 /**
+ * Gets optional context file info for artifacts listed in the artifact's context field.
+ * Only includes entries where the context file actually exists at the change root.
+ */
+function getContextFileInfo(
+  artifact: Artifact,
+  graph: ArtifactGraph,
+  changeDir: string
+): ContextFileInfo[] {
+  const result: ContextFileInfo[] = [];
+
+  for (const contextId of artifact.context ?? []) {
+    const contextArtifact = graph.getArtifact(contextId);
+    if (!contextArtifact) continue;
+
+    // Only include if the file actually exists
+    const existingPaths = resolveArtifactOutputs(changeDir, contextArtifact.generates);
+    for (const filePath of existingPaths) {
+      result.push({
+        id: contextId,
+        path: filePath,
+        description: contextArtifact.description,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Formats the status of all artifacts in a change.
  *
  * @param context - Change context
@@ -394,7 +440,17 @@ export function formatChangeStatus(
   const blocked = context.graph.getBlocked(context.completed);
 
   const artifactPaths: Record<string, ArtifactPathSummary> = {};
+
+  // Determine which artifact IDs are optional (not required by any other artifact and not in apply.requires)
+  const allRequiredIds = new Set(applyRequires);
+  for (const artifact of artifacts) {
+    for (const req of artifact.requires) {
+      allRequiredIds.add(req);
+    }
+  }
+
   const artifactStatuses: ArtifactStatus[] = artifacts.map(artifact => {
+    const isOptional = !allRequiredIds.has(artifact.id);
     artifactPaths[artifact.id] = {
       outputPath: artifact.generates,
       resolvedOutputPath: path.join(context.changeDir, artifact.generates),
@@ -406,6 +462,7 @@ export function formatChangeStatus(
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'done' as const,
+        ...(isOptional ? { optional: true } : {}),
       };
     }
 
@@ -414,6 +471,7 @@ export function formatChangeStatus(
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'ready' as const,
+        ...(isOptional ? { optional: true } : {}),
       };
     }
 
@@ -422,6 +480,7 @@ export function formatChangeStatus(
       outputPath: artifact.generates,
       status: 'blocked' as const,
       missingDeps: blocked[artifact.id] ?? [],
+      ...(isOptional ? { optional: true } : {}),
     };
   });
 
@@ -429,7 +488,9 @@ export function formatChangeStatus(
   const buildOrder = context.graph.getBuildOrder();
   const orderMap = new Map(buildOrder.map((id, idx) => [id, idx]));
   artifactStatuses.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
-  const isComplete = context.graph.isComplete(context.completed);
+  // isComplete: all required artifacts (those in apply.requires chain) must be done.
+  // Optional artifacts (not in allRequiredIds) do not block completion.
+  const isComplete = [...allRequiredIds].every(id => context.completed.has(id));
   const artifactIds = artifactStatuses.map((artifact) => artifact.id);
 
   return {

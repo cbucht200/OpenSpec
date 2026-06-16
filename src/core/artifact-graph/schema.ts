@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import { parse as parseYaml } from 'yaml';
-import { SchemaYamlSchema, type SchemaYaml, type Artifact } from './types.js';
+import { SchemaYamlSchema, type SchemaYaml, type Artifact, type ApplyPhase } from './types.js';
 
 export class SchemaValidationError extends Error {
   constructor(message: string) {
@@ -38,6 +38,9 @@ export function parseSchema(yamlContent: string): SchemaYaml {
   // Check that all requires references are valid
   validateRequiresReferences(schema.artifacts);
 
+  // Check that all context references are valid
+  validateContextReferences(schema.artifacts, schema.apply);
+
   // Check for cycles
   validateNoCycles(schema.artifacts);
 
@@ -70,6 +73,31 @@ function validateRequiresReferences(artifacts: Artifact[]): void {
           `Invalid dependency reference in artifact '${artifact.id}': '${req}' does not exist`
         );
       }
+    }
+  }
+}
+
+/**
+ * Validates that all `context` references in artifacts and the apply block point to valid artifact IDs.
+ */
+function validateContextReferences(artifacts: Artifact[], apply?: ApplyPhase): void {
+  const validIds = new Set(artifacts.map(a => a.id));
+
+  for (const artifact of artifacts) {
+    for (const ref of artifact.context ?? []) {
+      if (!validIds.has(ref)) {
+        throw new SchemaValidationError(
+          `Invalid context reference in artifact '${artifact.id}': '${ref}' does not exist`
+        );
+      }
+    }
+  }
+
+  for (const ref of apply?.context ?? []) {
+    if (!validIds.has(ref)) {
+      throw new SchemaValidationError(
+        `Invalid context reference in apply block: '${ref}' does not exist`
+      );
     }
   }
 }

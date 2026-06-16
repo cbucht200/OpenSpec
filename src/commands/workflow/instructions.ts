@@ -182,6 +182,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     rules,
     template,
     dependencies,
+    contextFiles,
     unlocks,
   } = instructions;
 
@@ -246,6 +247,21 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
       console.log('</dependency>');
     }
     console.log('</dependencies>');
+    console.log();
+  }
+
+  // Optional context files (present only when they exist)
+  if (contextFiles && contextFiles.length > 0) {
+    console.log('<context_files>');
+    console.log('These optional context files exist and should be read for additional context:');
+    console.log();
+    for (const cf of contextFiles) {
+      console.log(`<context_file id="${cf.id}">`);
+      console.log(`  <path>${cf.path}</path>`);
+      console.log(`  <description>${cf.description}</description>`);
+      console.log('</context_file>');
+    }
+    console.log('</context_files>');
     console.log();
   }
 
@@ -371,6 +387,10 @@ export async function generateApplyInstructions(
       contextFiles[artifact.id] = outputs;
     }
   }
+
+  // Also include optional context artifacts from the apply block's context field
+  // These are included only when their files exist (already captured above via schema.artifacts loop)
+  // The apply.context field is informational - files are already included if present in schema.artifacts
 
   // Parse tasks if tracking file exists
   let tasks: TaskItem[] = [];

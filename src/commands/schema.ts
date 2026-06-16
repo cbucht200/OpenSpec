@@ -813,6 +813,7 @@ export function registerSchemaCommand(program: Command): void {
             description: template.description,
             template: template.template,
             requires: [],
+            context: [],
           };
 
           // Set up dependencies based on typical workflow
@@ -843,6 +844,7 @@ export function registerSchemaCommand(program: Command): void {
           schema.apply = {
             requires: ['tasks'],
             tracks: 'tasks.md',
+            context: [],
           };
         }
 

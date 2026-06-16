@@ -578,7 +578,9 @@ rules:
       const status = formatChangeStatus(context);
 
       expect(status.isComplete).toBe(true);
-      expect(status.artifacts.every(a => a.status === 'done')).toBe(true);
+      // Required artifacts should all be done; optional ones (architecture, decisions) may still be ready
+      const requiredArtifacts = status.artifacts.filter(a => !a.optional);
+      expect(requiredArtifacts.every(a => a.status === 'done')).toBe(true);
     });
 
     it('should show blocked artifacts with missing dependencies', () => {

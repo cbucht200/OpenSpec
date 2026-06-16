@@ -2,6 +2,66 @@ name: spec-driven
 version: 1
 description: Default OpenSpec workflow - proposal → specs → design → tasks
 artifacts:
+  - id: architecture
+    generates: architecture.md
+    description: High-level architectural design document (optional - created by /opsx-architect)
+    template: architecture.md
+    instruction: |
+      Create the architecture document that captures HOW this feature is designed at a structural level.
+
+      Sections:
+      - **Overview**: What this change does architecturally and how it fits into the existing system.
+      - **Components**: Major pieces being built or modified, each with its responsibility.
+      - **Key Architectural Decisions**: The choices that matter. Format each as:
+        ### [Decision name]
+        **Choice**: what was chosen
+        **Rationale**: why
+        **Alternatives considered**: what was rejected and why
+      - **Data Flow**: How data moves through this feature. Use ASCII diagrams.
+      - **Integration Points**: Where this connects to the existing system (APIs consumed, events, shared state).
+      - **Security Model**: Trust boundaries, authentication/authorization requirements, sensitive data handling.
+      - **Error Handling Strategy**: Error model, how errors propagate, retry/circuit breaker policies.
+      - **Observability Strategy**: What gets logged, key metrics, trace boundaries.
+      - **Constraints**: Hard limits - things that cannot change, boundaries that must be respected.
+      - **Diagrams**: ASCII diagrams of system shape, component relationships, sequence flows.
+
+      This document is written by /opsx-architect, not /opsx-propose.
+      The Key Architectural Decisions section is used by /opsx-verify to check for architectural drift.
+    requires: []
+
+  - id: decisions
+    generates: decisions.md
+    description: Detailed implementation decisions (optional - created by /opsx-revise)
+    template: decisions.md
+    instruction: |
+      Create the decisions document that captures every implementation decision made during
+      the pre-implementation interview, including overrides and breaking changes.
+
+      Structure:
+      - **BREAKING CHANGES section** (only if any breaking decisions were made):
+        A markdown table at the top:
+        | Decision | Affects | Override? |
+        |----------|---------|-----------|
+        | [name]   | [file paths] | Yes/No |
+
+      - **Decisions section**: One entry per decision with this exact format:
+        ### Decision: [name]
+        [BREAKING] and/or [OVERRIDE] markers on the line immediately after the heading (if applicable).
+        Recommendation: [what the agent recommended]
+        Decision: [what was chosen]
+        Rationale: [why]
+
+        Q: [question asked]
+        A: [user's answer]
+
+      Parseable tokens used by downstream pipeline:
+      - [BREAKING] — /opsx-propose generates refactoring tasks for the affected files
+      - [OVERRIDE] — /opsx-verify checks that implementation followed the override (not the recommendation)
+      - [BREAKING][OVERRIDE] — both tokens apply
+
+      This document is written by /opsx-revise, not /opsx-propose.
+    requires: []
+
   - id: proposal
     generates: proposal.md
     description: Initial proposal document outlining the change
@@ -105,10 +165,15 @@ artifacts:
 
       Focus on architecture and approach, not line-by-line implementation.
       Reference the proposal for motivation and specs for requirements.
+      If architecture.md or decisions.md exist in context, do not re-describe what they cover -
+      reference them and focus design.md on implementation-level details they don't address.
 
       Good design docs explain the "why" behind technical decisions.
     requires:
       - proposal
+    context:
+      - architecture
+      - decisions
 
   - id: tasks
     generates: tasks.md
@@ -125,6 +190,7 @@ artifacts:
       - Each task MUST be a checkbox: `- [ ] X.Y Task description`
       - Tasks should be small enough to complete in one session
       - Order tasks by dependency (what must be done first?)
+      - If decisions.md exists with [BREAKING] entries, include refactoring tasks for the affected files.
 
       Example:
       ```
@@ -144,6 +210,9 @@ artifacts:
     requires:
       - specs
       - design
+    context:
+      - architecture
+      - decisions
 
 apply:
   requires: [tasks]
@@ -151,3 +220,7 @@ apply:
   instruction: |
     Read context files, work through pending tasks, mark complete as you go.
     Pause if you hit blockers or need clarification.
+  context:
+    - architecture
+    - decisions
+

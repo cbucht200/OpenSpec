@@ -41,6 +41,7 @@ export {
   type LoadChangeContextOptions,
   type ArtifactInstructions,
   type DependencyInfo,
+  type ContextFileInfo,
   type ArtifactStatus,
   type ChangeStatus,
   type ArtifactPathSummary,

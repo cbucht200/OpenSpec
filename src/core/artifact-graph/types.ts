@@ -8,6 +8,9 @@ export const ArtifactSchema = z.object({
   template: z.string().min(1, { error: 'template field is required' }),
   instruction: z.string().optional(),
   requires: z.array(z.string()).default([]),
+  // Optional context artifacts: included in instruction context only when their files exist.
+  // Unlike requires, missing context items do not block artifact creation.
+  context: z.array(z.string()).default([]),
 });
 
 // Apply phase configuration for schema-aware apply instructions
@@ -18,6 +21,8 @@ export const ApplyPhaseSchema = z.object({
   tracks: z.string().nullable().optional(),
   // Custom guidance for the apply phase
   instruction: z.string().optional(),
+  // Optional context artifacts: included in apply contextFiles only when their files exist.
+  context: z.array(z.string()).default([]),
 });
 
 // Full schema YAML structure

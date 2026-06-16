@@ -134,11 +134,14 @@ export class ArtifactGraph {
   }
 
   /**
-   * Checks if all artifacts in the graph are completed.
+   * Checks if all artifacts in the graph are completed, or if a specific set of required artifacts are completed.
+   * @param completed - Set of completed artifact IDs
+   * @param requiredIds - Optional subset of artifact IDs to check. If omitted, checks all artifacts.
    */
-  isComplete(completed: CompletedSet): boolean {
-    for (const artifact of this.artifacts.values()) {
-      if (!completed.has(artifact.id)) {
+  isComplete(completed: CompletedSet, requiredIds?: Set<string>): boolean {
+    const toCheck = requiredIds ?? new Set(this.artifacts.keys());
+    for (const id of toCheck) {
+      if (!completed.has(id)) {
         return false;
       }
     }

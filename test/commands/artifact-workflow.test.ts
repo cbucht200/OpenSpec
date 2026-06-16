@@ -120,10 +120,14 @@ describe('artifact-workflow CLI commands', () => {
       expect(json.schemaName).toBe('spec-driven');
       expect(json.isComplete).toBe(false);
       expect(Array.isArray(json.artifacts)).toBe(true);
-      expect(json.artifacts).toHaveLength(4);
+      // Schema now has 6 artifacts: architecture, decisions (optional) + proposal, specs, design, tasks (required)
+      expect(json.artifacts).toHaveLength(6);
 
       const proposalArtifact = json.artifacts.find((a: any) => a.id === 'proposal');
       expect(proposalArtifact.status).toBe('done');
+      // Optional artifacts are marked
+      const architectureArtifact = json.artifacts.find((a: any) => a.id === 'architecture');
+      expect(architectureArtifact.optional).toBe(true);
     });
 
     it('shows complete status when all artifacts are done', async () => {

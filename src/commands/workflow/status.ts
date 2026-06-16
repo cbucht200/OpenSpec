@@ -122,8 +122,11 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 }
 
 export function printStatusText(status: ChangeStatus): void {
-  const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
-  const total = status.artifacts.length;
+  // Count only required (non-optional) artifacts for the progress display
+  const requiredArtifacts = status.artifacts.filter((a) => !a.optional);
+  const optionalArtifacts = status.artifacts.filter((a) => a.optional);
+  const doneCount = requiredArtifacts.filter((a) => a.status === 'done').length;
+  const total = requiredArtifacts.length;
 
   console.log(`Change: ${status.changeName}`);
   console.log(`Schema: ${status.schemaName}`);
@@ -133,7 +136,7 @@ export function printStatusText(status: ChangeStatus): void {
   console.log(`Progress: ${doneCount}/${total} artifacts complete`);
   console.log();
 
-  for (const artifact of status.artifacts) {
+  for (const artifact of requiredArtifacts) {
     const indicator = getStatusIndicator(artifact.status);
     const color = getStatusColor(artifact.status);
     let line = `${indicator} ${artifact.id}`;
@@ -143,6 +146,15 @@ export function printStatusText(status: ChangeStatus): void {
     }
 
     console.log(line);
+  }
+
+  if (optionalArtifacts.length > 0) {
+    console.log();
+    console.log('Optional context artifacts:');
+    for (const artifact of optionalArtifacts) {
+      const indicator = getStatusIndicator(artifact.status);
+      console.log(`${indicator} ${artifact.id} (optional)`);
+    }
   }
 
   if (status.isComplete) {
