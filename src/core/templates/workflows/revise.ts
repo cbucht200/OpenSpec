@@ -174,6 +174,25 @@ A: [user's answer]
 
 Tell the user: "All decisions captured. Written to \`decisions.md\`."
 
+### 7. Align architecture.md
+
+Check whether \`architecture.md\` exists in the change directory (it is present when an architect session ran before this one; it is absent for standalone revise sessions).
+
+**If \`architecture.md\` does not exist**: skip this step silently.
+
+**If \`architecture.md\` exists**: launch an alignment subagent.
+
+**Subagent prompt**: "Read decisions.md and architecture.md from this change. Find every place where a decision in decisions.md CONTRADICTS (not merely refines) what architecture.md states. A contradiction is when decisions.md says something contrary to a statement explicitly present in architecture.md. Adding detail on a topic architecture.md was silent about is NOT a contradiction — do not flag refinements. Return either NO_CONTRADICTIONS, or a numbered list where each entry contains: (1) the section of architecture.md affected, (2) the current text, (3) the replacement text based on the decision."
+
+**If the subagent returns \`NO_CONTRADICTIONS\`**:
+- Tell the user: "architecture.md is consistent with all decisions — no updates needed."
+
+**If contradictions are found**:
+- Show the user a concise summary: "X decision(s) conflict with architecture.md: [list of affected sections]"
+- Ask: "Update architecture.md to align? (Y/N)"
+- If yes: patch only the contradicted sections, leaving all other content unchanged; tell the user "architecture.md aligned."
+- If no: leave \`architecture.md\` unmodified and continue.
+
 ---
 
 ## After decisions.md
@@ -252,6 +271,14 @@ openspec instructions decisions --change "<name>" --json
 \`\`\`
 
 Structure: BREAKING CHANGES summary table (if any), then individual decision entries with \`[BREAKING]\` and \`[OVERRIDE]\` markers.
+
+### 7. Align architecture.md
+
+If \`architecture.md\` exists in the change directory: run an alignment subagent to find places where \`decisions.md\` CONTRADICTS (not merely refines) content in \`architecture.md\`. Refinements that add detail on topics \`architecture.md\` was silent about are not contradictions — do not flag them.
+
+- If the subagent returns \`NO_CONTRADICTIONS\`: tell the user "architecture.md is consistent with all decisions — no updates needed."
+- If contradictions are found: show a summary of affected sections, ask the user to confirm, then patch only the contradicted sections.
+- If \`architecture.md\` does not exist: skip silently.
 
 ---
 
